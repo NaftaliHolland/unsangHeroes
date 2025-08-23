@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Django specific
+db.sqlite3
+media/
+staticfiles/
+*.log
+
+# Migrations (optional - keep if you want to share migrations)
+# */migrations/*.py
+# !*/migrations/__init__.py
+
+# Environment variables
+.env
+*.env
+
+# IDE / Editor stuff
+.vscode/
+.idea/
+*.swp
+*.cache
