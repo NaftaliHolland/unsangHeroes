@@ -14,6 +14,7 @@ class TagViewSet(ModelViewSet):
     permission_classes = [IsAdminUser | IsAuthenticatedOrReadOnly]
 
 class NominationViewSet(ModelViewSet):
+    permission_classes = [AllowAny]
     def get_queryset(self):
         user = self.request.user
         if user.profile.role is not 'public':

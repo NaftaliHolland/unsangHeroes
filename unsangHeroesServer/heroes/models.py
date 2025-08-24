@@ -127,4 +127,8 @@ class Nomination(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.nominee_name} nominated by {self.nominator_name} - {self.status}"
+        if self.nominated_by:
+            nominator_name = self.nominated_by.username
+        else:
+            nominator_name = self.nominee_name
+        return f"{self.nominee_name} nominated by {nominator_name} - {self.status}"
