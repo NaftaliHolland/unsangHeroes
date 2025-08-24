@@ -2,10 +2,13 @@ from rest_framework.viewsets import ModelViewSet
 from .serializers import (
     TagSerializer,
     NominationListSerializer,
-    NominationDetailsSerializer,
+    NominationDetailSerializer,
     NominationCreateSerializer,
+    InterviewCreateSerializer,
+    InterviewDetailSerializer,
+    InterviewListSerializer,
 )
-from .models import Tag, Hero, Nomination
+from .models import Tag, Hero, Nomination, Interview
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticatedOrReadOnly
 
 class TagViewSet(ModelViewSet):
@@ -17,7 +20,7 @@ class NominationViewSet(ModelViewSet):
     permission_classes = [AllowAny]
     def get_queryset(self):
         user = self.request.user
-        if user.profile.role is not 'public':
+        if user.profile.role != 'public':
             return Nomination.objects.all()
         return Nomination.objects.filter(created_by=user)
 
@@ -29,6 +32,22 @@ class NominationViewSet(ModelViewSet):
             return NominationCreateSerializer
 
         if self.action == 'retreive':
-            return NominationDetailsSerializer
+            return NominationDetailSerializer
 
-        return NominationDetailsSerializer
+        return NominationDetailSerializer
+
+class InterviewViewSet(ModelViewSet):
+    queryset = Interview.objects.all()
+    permission_classes = [IsAdminUser]
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return InterviewListSerializer
+
+        if self.action == 'create':
+            return InterviewCreateSerializer
+
+        if self.action == 'retreive':
+            return InterviewDetailSerializer
+
+        return InterviewDetailSerializer

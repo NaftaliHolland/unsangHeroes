@@ -132,3 +132,57 @@ class Nomination(models.Model):
         else:
             nominator_name = self.nominee_name
         return f"{self.nominee_name} nominated by {nominator_name} - {self.status}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.contact_status == 'completed':
+            hero = Hero(
+                name=self.nominee_name,
+                email=self.nominee_email,
+                phone_number=self.nominee_phone,
+            )
+            hero.save()
+
+class Interview(models.Model):
+    INTERVIEW_STATUS = [
+        ('sheduled', 'Scheduled'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+        ('no_show', 'No Show'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    nomination = models.ForeignKey(
+        "Nomination",
+        on_delete=models.SET_NULL,
+        related_name='interviews',
+        null=True,
+        blank=True
+    )
+    interviewer = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='interviews'
+    )
+    scheduled_at = models.DateTimeField()
+    location = models.CharField(max_length=255, blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=INTERVIEW_STATUS, default='scheduled')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-scheduled_at']
+
+    def __str__(self):
+        return f"Interview for {self.nomination.nominee_name} - {self.status}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.status == 'scheduled':
+            self.nomination.contact_status = 'interview_scheduled'
+        elif self.status == 'completed':
+            self.nomination.contact_status = 'completed'
+        self.nomination.save()
