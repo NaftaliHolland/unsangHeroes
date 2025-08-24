@@ -1,3 +1,6 @@
 from django.contrib import admin
+from .models import Tag, Hero, Nomination
 
-# Register your models here.
+admin.site.register(Tag)
+admin.site.register(Hero)
+admin.site.register(Nomination)
