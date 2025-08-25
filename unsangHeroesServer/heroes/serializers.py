@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Tag, Hero, Nomination, Interview, Story
 from authentication.serializers import UserSerializer
 from rest_framework.validators import ValidationError
+from unsangheroes.utils import get_cloudinary_url
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
@@ -137,21 +138,33 @@ class StoryListSerializer(serializers.ModelSerializer):
         ]
 
 class NestedHeroSerializer(serializers.ModelSerializer):
+    avatar = serializers.SerializerMethodField()
+
     class Meta:
         model = Hero
         fields = [
             'id',
             'display_name',
             'bio',
-            'image',
+            'avatar',
             'location',
             'tags'
         ]
+
+    def get_avatar(self, obj):
+        variants = {
+            'small': get_cloudinary_url(obj.cover_image, 50, 50),
+            'medium': get_cloudinary_url(obj.cover_image, 150, 150),
+            'large': get_cloudinary_url(obj.cover_image, 300, 300),
+        }
+
+        return variants
 
 class StoryDetailSerializer(serializers.ModelSerializer):
     hero = NestedHeroSerializer(read_only=True)
     nomination_id = serializers.UUIDField(source='nomination.id', read_only=True)
     approved_by_name = serializers.CharField(source='approved_by.username', read_only=True)
+    cover_image = serializers.SerializerMethodField()
     
     class Meta:
         model = Story
@@ -159,6 +172,7 @@ class StoryDetailSerializer(serializers.ModelSerializer):
             'id',
             'title',
             'hero',
+            'cover_image',
             'nomination_id',
             'content',
             'intro',
@@ -171,6 +185,17 @@ class StoryDetailSerializer(serializers.ModelSerializer):
             'approved_by_name',
             'approved_at'
         ]
+
+    def get_cover_image(self, obj):
+
+        variants = {
+            'original': get_cloudinary_url(obj.cover_image),
+            'desktop': get_cloudinary_url(obj.cover_image, 1200, 600),
+            'tablet': get_cloudinary_url(obj.cover_image, 800, 400),
+            'mobile': get_cloudinary_url(obj.cover_image, 400, 200),
+        }
+
+        return variants
 
 class StoryCreateSerializer(serializers.ModelSerializer):
     class Meta:

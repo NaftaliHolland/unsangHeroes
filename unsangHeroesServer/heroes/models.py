@@ -24,9 +24,11 @@ class Tag(models.Model):
 
 class Hero(models.Model):
     HERO_STATUS = [
-        ('draft', 'Draft'),
-        ('published', 'Published'),
+        ('under_review', 'Under Review'),
+        ('verified', 'Verified'),
+        ('rejected', 'Rejected'),
         ('archieved', 'Archieved'),
+        ('draft', 'Draft'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -36,7 +38,7 @@ class Hero(models.Model):
     phone_number = models.CharField(max_length=15, blank=True, null=True, unique=True)
     slug = models.SlugField(unique=True, blank=True)
     bio = models.TextField(blank=True)
-    image = models.ImageField(upload_to='heroes/', blank=True, null=True)
+    avatar = models.ImageField(upload_to='heroes/', blank=True, null=True)
     location = models.CharField(max_length=255, blank=True)
     tags = models.ManyToManyField('Tag', blank=True, related_name='heroes')
     origin_nomination = models.ForeignKey(
@@ -57,7 +59,7 @@ class Hero(models.Model):
     status = models.CharField(
         max_length=20,
         choices=HERO_STATUS,
-        default='draft'
+        default='under_review'
     )
     featured = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -215,13 +217,15 @@ class Story(models.Model):
     ]
 
     hero = models.ForeignKey('Hero', on_delete=models.SET_NULL, null=True, blank=True, related_name='stories')
+    cover_image = models.ImageField(upload_to='unsungstories_cover/', blank=True, null=True)
     nomination = models.ForeignKey('Nomination', on_delete=models.SET_NULL, null=True, blank=True, related_name='stories')
     title = models.CharField(max_length=255)
     content = models.JSONField()
-    intro = models.TextField(help_text='Short summary for listing previews', null=True, blank=True)
+    intro = models.TextField(help_text='Short summary for story previews', null=True, blank=True)
     impact = models.TextField(null=True, blank=True)
     aurthor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    featured = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     validated_at = models.DateTimeField(null=True, blank=True)
     history = HistoricalRecords()
