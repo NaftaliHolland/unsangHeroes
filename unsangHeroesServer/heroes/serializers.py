@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Tag, Hero, Nomination, Interview
+from .models import Tag, Hero, Nomination, Interview, Story
 from authentication.serializers import UserSerializer
 from rest_framework.validators import ValidationError
 
@@ -118,5 +118,81 @@ class InterviewCreateSerializer(serializers.ModelSerializer):
             from django.utils import timezone
             if attrs['sheduled_at'] < timezone.now():
                 raise serializers.ValidationError("Interview date must be in the future.")
+
+        return super().validate(attrs)
+
+class StoryListSerializer(serializers.ModelSerializer):
+    hero_name = serializers.CharField(source='hero.name', read_only=True)
+
+    class Meta:
+        model = Story
+        fields = [
+            'id',
+            'title',
+            'hero_name',
+            'intro',
+            'status',
+            'impact',
+            'created_at'
+        ]
+
+class NestedHeroSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Hero
+        fields = [
+            'id',
+            'display_name',
+            'bio',
+            'image',
+            'location',
+            'tags'
+        ]
+
+class StoryDetailSerializer(serializers.ModelSerializer):
+    hero = NestedHeroSerializer(read_only=True)
+    nomination_id = serializers.UUIDField(source='nomination.id', read_only=True)
+    approved_by_name = serializers.CharField(source='approved_by.username', read_only=True)
+    
+    class Meta:
+        model = Story
+        fields = [
+            'id',
+            'title',
+            'hero',
+            'nomination_id',
+            'content',
+            'intro',
+            'impact',
+            'history',
+            'status',
+            'author',
+            'created_at',
+            'validated_at',
+            'approved_by_name',
+            'approved_at'
+        ]
+
+class StoryCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Story
+        fields = [
+            'hero',
+            'nomination',
+            'title',
+            'content',
+            'impact',
+            'status',
+            'author',
+        ]
+        read_only_fields = ['author']
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        validated_data['author'] = request.user
+        return super().create(validated_data)
+
+    def validate(self, attrs):
+        if not attrs.get('hero', None):
+            raise ValidationError('hero cannot be empty')
 
         return super().validate(attrs)

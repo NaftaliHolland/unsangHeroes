@@ -7,9 +7,23 @@ from .serializers import (
     InterviewCreateSerializer,
     InterviewDetailSerializer,
     InterviewListSerializer,
+    StoryCreateSerializer,
+    StoryDetailSerializer,
+    StoryListSerializer,
 )
-from .models import Tag, Hero, Nomination, Interview
-from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticatedOrReadOnly
+from .permissions import CanWriteOrReadOnly
+from .models import (
+    Tag,
+    Hero,
+    Nomination,
+    Interview,
+    Story,
+)
+from rest_framework.permissions import (
+    AllowAny,
+    IsAdminUser,
+    IsAuthenticatedOrReadOnly
+)
 
 class TagViewSet(ModelViewSet):
     queryset = Tag.objects.all()
@@ -38,7 +52,7 @@ class NominationViewSet(ModelViewSet):
 
 class InterviewViewSet(ModelViewSet):
     queryset = Interview.objects.all()
-    permission_classes = [IsAdminUser]
+    permission_classes = [CanWriteOrReadOnly]
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -51,3 +65,19 @@ class InterviewViewSet(ModelViewSet):
             return InterviewDetailSerializer
 
         return InterviewDetailSerializer
+
+class StoryViewSet(ModelViewSet):
+    queryset = Story.objects.all()
+    permission_classes = [CanWriteOrReadOnly]
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return StoryListSerializer
+
+        if self.action in ['create', 'update', 'partial_update']:
+            return StoryCreateSerializer
+
+        if self.action == 'retreive':
+            return StoryDetailSerializer
+
+        return StoryDetailSerializer

@@ -2,6 +2,9 @@ from django.db import models
 from django.contrib.auth import get_user_model
 import uuid
 from django.utils.text import slugify
+from django.dispatch import receiver
+from django.db.models.signals import post_save
+from simple_history.models import HistoricalRecords
 
 User = get_user_model()
 
@@ -30,7 +33,7 @@ class Hero(models.Model):
     user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True)# If a hero ever decides to be a user on our site
     name = models.CharField(max_length=255)
     email = models.EmailField(blank=True, null=True)
-    phone_number = models.CharField(max_length=15, blank=True, null=True)
+    phone_number = models.CharField(max_length=15, blank=True, null=True, unique=True)
     slug = models.SlugField(unique=True, blank=True)
     bio = models.TextField(blank=True)
     image = models.ImageField(upload_to='heroes/', blank=True, null=True)
@@ -64,6 +67,13 @@ class Hero(models.Model):
         ordering = ["-created_at"]
         verbose_name = "Hero"
         verbose_name_plural = "Heroes"
+
+    @property
+    def display_name(self):
+        if self.user:
+            return self.user.username
+
+        return self.name
 
     def __str__(self):
         return self.name
@@ -115,10 +125,9 @@ class Nomination(models.Model):
     status = models.CharField(max_length=20, choices=NOMINATION_STATUS, default='pending')
 
     contact_status = models.CharField(max_length=20, choices=CONTACT_STATUS, default='not_contacted')
-    contact_notes = models.TextField(blank=True, null=True)
-    interview_date = models.DateTimeField(blank=True, null=True)
     
-    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='approved_nominations')
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_nominations')
+    approved_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -133,32 +142,15 @@ class Nomination(models.Model):
             nominator_name = self.nominee_name
         return f"{self.nominee_name} nominated by {nominator_name} - {self.status}"
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        if self.contact_status == 'completed':
-            hero = Hero(
-                name=self.nominee_name,
-                email=self.nominee_email,
-                phone_number=self.nominee_phone,
-            )
-            hero.save()
-
 class Interview(models.Model):
     INTERVIEW_STATUS = [
-        ('sheduled', 'Scheduled'),
+        ('scheduled', 'Scheduled'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
         ('no_show', 'No Show'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    nomination = models.ForeignKey(
-        "Nomination",
-        on_delete=models.SET_NULL,
-        related_name='interviews',
-        null=True,
-        blank=True
-    )
     interviewer = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -166,6 +158,9 @@ class Interview(models.Model):
         blank=True,
         related_name='interviews'
     )
+    story = models.ForeignKey('Story', on_delete=models.SET_NULL, null=True, blank=True, related_name='interviews')
+    nomination = models.ForeignKey('Nomination', on_delete=models.SET_NULL, null=True, blank=True, related_name='interviews')
+    hero = models.ForeignKey('Hero', on_delete=models.SET_NULL, null=True, blank=True, related_name='interviews')
     scheduled_at = models.DateTimeField()
     location = models.CharField(max_length=255, blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
@@ -174,15 +169,68 @@ class Interview(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-scheduled_at']
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        creating = self._state.adding
+        super().save(*args, **kwargs)
+
+        if creating:
+            hero, created = Hero.objects.get_or_create(
+                name=self.nomination.nominee_name,
+                email=self.nomination.nominee_email,
+                phone_number=self.nomination.nominee_phone,
+                location=self.nomination.nominee_location,
+            )
+            self.hero = hero
+            super().save(update_fields=['hero'])
+
+            print("Updating nomination", self.nomination.status, self.nomination.contact_status)
+            self.nomination.contact_status = 'interview_scheduled'
+            self.nomination.status = 'approved'
+            self.nomination.save()
+            print("Done udating nomination", self.nomination.status, self.nomination.contact_status)
+
+        if self.status == 'completed':
+            story, _ = Story.objects.get_or_create(
+                hero=self.hero,
+                nomination=self.nomination,
+                title=f"{self.hero.name} Interview title - draft",
+                content=self.notes if self.notes else f"{self.hero.name}",
+            )
+            self.story = story
+            super().save(update_fields=['story'])
+
+            self.nomination.contact_status = 'completed'
+            self.nomination.save()
 
     def __str__(self):
         return f"Interview for {self.nomination.nominee_name} - {self.status}"
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        if self.status == 'scheduled':
-            self.nomination.contact_status = 'interview_scheduled'
-        elif self.status == 'completed':
-            self.nomination.contact_status = 'completed'
-        self.nomination.save()
+class Story(models.Model):
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('pending', 'Pending'),
+        ('published', 'Published')
+    ]
+
+    hero = models.ForeignKey('Hero', on_delete=models.SET_NULL, null=True, blank=True, related_name='stories')
+    nomination = models.ForeignKey('Nomination', on_delete=models.SET_NULL, null=True, blank=True, related_name='stories')
+    title = models.CharField(max_length=255)
+    content = models.JSONField()
+    intro = models.TextField(help_text='Short summary for listing previews', null=True, blank=True)
+    impact = models.TextField(null=True, blank=True)
+    aurthor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    created_at = models.DateTimeField(auto_now_add=True)
+    validated_at = models.DateTimeField(null=True, blank=True)
+    history = HistoricalRecords()
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_stories')
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name_plural = "Stories"
+
+    def __str__(self):
+        return f"{self.title} for {self.hero.display_name}"
