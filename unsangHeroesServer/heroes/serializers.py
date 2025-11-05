@@ -124,6 +124,8 @@ class InterviewCreateSerializer(serializers.ModelSerializer):
 
 class StoryListSerializer(serializers.ModelSerializer):
     hero_name = serializers.CharField(source='hero.name', read_only=True)
+    hero_avatar = serializers.SerializerMethodField()
+    story_cover = serializers.SerializerMethodField()
 
     class Meta:
         model = Story
@@ -131,12 +133,31 @@ class StoryListSerializer(serializers.ModelSerializer):
             'id',
             'title',
             'hero_name',
+            'hero_avatar',
+            'story_cover',
+            'hero_quote',
             'intro',
             'status',
-            'impact',
-            'created_at'
+            'impact_location',
         ]
 
+    def get_hero_avatar(self, obj):
+        variants = {
+            'small': get_cloudinary_url(obj.hero.avatar, 50, 50),
+            'medium': get_cloudinary_url(obj.hero.avatar, 150, 150),
+            'large': get_cloudinary_url(obj.hero.avatar, 300, 300),
+        }
+
+        return variants
+
+    def get_story_cover(self, obj):
+        variants = {
+            'small': get_cloudinary_url(obj.cover_image, 50, 50),
+            'medium': get_cloudinary_url(obj.cover_image, 150, 150),
+            'large': get_cloudinary_url(obj.cover_image, 300, 300),
+        }
+
+        return variants
 class NestedHeroSerializer(serializers.ModelSerializer):
     avatar = serializers.SerializerMethodField()
 
@@ -153,9 +174,9 @@ class NestedHeroSerializer(serializers.ModelSerializer):
 
     def get_avatar(self, obj):
         variants = {
-            'small': get_cloudinary_url(obj.cover_image, 50, 50),
-            'medium': get_cloudinary_url(obj.cover_image, 150, 150),
-            'large': get_cloudinary_url(obj.cover_image, 300, 300),
+            'small': get_cloudinary_url(obj.avatar, 50, 50),
+            'medium': get_cloudinary_url(obj.avatar, 150, 150),
+            'large': get_cloudinary_url(obj.avatar, 300, 300),
         }
 
         return variants
@@ -175,12 +196,15 @@ class StoryDetailSerializer(serializers.ModelSerializer):
             'cover_image',
             'nomination_id',
             'content',
+            'hero_quote',
+            'top_story',
             'intro',
             'impact',
             'history',
             'status',
             'author',
             'created_at',
+            'impact_location',
             'validated_at',
             'approved_by_name',
             'approved_at'

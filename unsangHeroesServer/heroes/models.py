@@ -217,8 +217,10 @@ class Story(models.Model):
     ]
 
     hero = models.ForeignKey('Hero', on_delete=models.SET_NULL, null=True, blank=True, related_name='stories')
+    hero_quote = models.CharField(max_length=255, null=True, blank=True)
     cover_image = models.ImageField(upload_to='unsungstories_cover/', blank=True, null=True)
     nomination = models.ForeignKey('Nomination', on_delete=models.SET_NULL, null=True, blank=True, related_name='stories')
+    impact_location = models.CharField(max_length=255, blank=True)
     title = models.CharField(max_length=255)
     content = models.JSONField()
     intro = models.TextField(help_text='Short summary for story previews', null=True, blank=True)
@@ -226,6 +228,7 @@ class Story(models.Model):
     aurthor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     featured = models.BooleanField(default=False)
+    top_story = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     validated_at = models.DateTimeField(null=True, blank=True)
     history = HistoricalRecords()
